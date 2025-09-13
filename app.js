@@ -107,19 +107,24 @@ async function render(){
 }
 
 function bindEvents(u){
+  // buton login
   $('#login-btn')?.addEventListener('click',async()=>{
     const email=$('#login-email').value;
     const pass=$('#login-pass').value;
     try{
       const user=await loginApi(email,pass);
       setCurrentUser(user.email);
-      navTo('home')
+      navTo('home');
     }catch(e){alert('Eroare login')}
   });
+
+  // link către signup
   $('#show-signup')?.addEventListener('click',e=>{
     e.preventDefault();
-    $('#signup-form').classList.remove('hidden')
+    $('#signup-form').classList.remove('hidden');
   });
+
+  // buton signup
   $('#signup-btn')?.addEventListener('click',async()=>{
     const name=$('#su-name').value;
     const email=$('#su-email').value;
@@ -128,24 +133,40 @@ function bindEvents(u){
     try{
       const user=await signupApi({name,email,password:pass,about});
       setCurrentUser(user.email);
-      navTo('home')
+      navTo('home');
     }catch(e){alert('Eroare signup')}
   });
+
+  // logout
   $('#btn-logout')?.addEventListener('click',()=>{
     setCurrentUser(null);
-    navTo('login')
+    navTo('login');
   });
+
+  // admin add/sub visits
   $('#adm-add')?.addEventListener('click',async()=>{
     const em=$('#adm-email').value;
     await updateVisitsApi(em,1);
-    alert('+1')
+    alert('+1');
   });
   $('#adm-sub')?.addEventListener('click',async()=>{
     const em=$('#adm-email').value;
     await updateVisitsApi(em,-1);
-    alert('-1')
-  })
+    alert('-1');
+  });
+
+  // ✅ butoane navigație
+  document.querySelectorAll(".nav-btn").forEach(btn=>{
+    btn.addEventListener("click",()=>{
+      const r = btn.getAttribute("data-route");
+      navTo(r);
+      // schimbă și clasa active pe meniu
+      document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+    });
+  });
 }
+
 
 // ✅ Fix la splash + intro
 window.addEventListener('load',()=>{
