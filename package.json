@@ -1,1 +1,1 @@
-{"name": "contrast-beauty"}
+{"name": "contrast-beauty", "type": "module", "dependencies": {"@neondatabase/serverless": "^0.9.4"}}

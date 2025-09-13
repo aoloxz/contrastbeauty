@@ -1,1 +1,1 @@
-// getUser.js placeholder
+// getUser.js netlify function

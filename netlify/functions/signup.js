@@ -1,1 +1,1 @@
-// signup.js placeholder
+// signup.js netlify function
