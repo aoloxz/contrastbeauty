@@ -1,1 +1,1 @@
-// signup.js netlify function
+export async function handler(){return {statusCode:200,body:'signup ok'}}

@@ -1,1 +1,1 @@
-// login.js netlify function
+export async function handler(){return {statusCode:200,body:'login ok'}}

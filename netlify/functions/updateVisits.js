@@ -1,1 +1,1 @@
-// updateVisits.js netlify function
+export async function handler(){return {statusCode:200,body:'update ok'}}
