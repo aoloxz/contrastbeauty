@@ -15,7 +15,7 @@ function setCurrentUser(e) {
 }
 
 async function api(path, method = 'GET', body = null) {
-  const r = await fetch(`/.netlify/functions/${path}`, {
+  const r = await fetch(`/api/${path}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined
@@ -27,14 +27,14 @@ async function api(path, method = 'GET', body = null) {
 const signupApi = d => api('signup', 'POST', d),
   loginApi = (e, p) => api('login', 'POST', { email: e, password: p }),
   getUserApi = e =>
-    fetch(`/.netlify/functions/getUser?email=${encodeURIComponent(e)}`).then(r =>
+    fetch(`/api/getUser?email=${encodeURIComponent(e)}`).then(r =>
       r.json()
     ),
   updateVisitsApi = (e, d) => api('updateVisits', 'POST', { email: e, delta: d }),
   createBookingApi = b => api('createBooking', 'POST', b),
   getBookingsApi = (email = null) =>
     fetch(
-      `/.netlify/functions/getBookings${
+      `/api/getBookings${
         email ? `?email=${encodeURIComponent(email)}` : ''
       }`
     ).then(r => r.json()),

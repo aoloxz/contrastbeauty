@@ -1,11 +1,14 @@
 import { neon } from '@neondatabase/serverless';
-const sql = neon(process.env.NETLIFY_DATABASE_URL);
+const sql = neon(process.env.DATABASE_URL);
 
-export async function handler(event) {
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
-    const { name, email, password, about } = JSON.parse(event.body);
+    const { name, email, password, about } = req.body;
 
-    // Creează tabelul dacă nu există
     await sql`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -18,15 +21,14 @@ export async function handler(event) {
       )
     `;
 
-    // Inserează user nou
     const result = await sql`
       INSERT INTO users (name, email, password, about)
       VALUES (${name}, ${email}, ${password}, ${about})
       RETURNING id, name, email, about, visits, joined_at
     `;
 
-    return { statusCode: 200, body: JSON.stringify(result[0]) };
+    return res.status(200).json(result[0]);
   } catch (err) {
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return res.status(500).json({ error: err.message });
   }
 }
