@@ -24,7 +24,7 @@ const signupApi=d=>api('signup','POST',d),
       updateBookingApi=(id,status)=>api('updateBooking','POST',{id,status});
 
 const routes=['home','services','appointment','confirm','card','rewards','profile','login','admin'];
-let route='home';let cachedUser=null;let bookingDraft=null;
+let route='home';let cachedUser=null;let bookingDraft=null; let bookingWeekOffset = 0;
 
 async function fetchCurrentUser(){
   const e=currentUserEmail();
@@ -71,15 +71,30 @@ function generateSlots(date, duration=45){
 function Home(u){
   return `<section class='card'><h2>Bine ai venit, ${u?.name||''}</h2></section>`
 }
-function Services(){
+function Services() {
   return `<section class='card'>
-    <h2>Servicii</h2>
-    <div class="tabs">
-      <div class="tab active" data-gender="barbat">Bărbat</div>
-      <div class="tab" data-gender="femeie">Femeie</div>
+    <h2>Alege un serviciu</h2>
+    <div class="services-list">
+      ${[
+        { name: 'Tuns clasic', dur: 45, price: '70', gender: 'barbat' },
+        { name: 'Fade + Styling', dur: 60, price: '90', gender: 'barbat' },
+        { name: 'Barbă & Contur', dur: 30, price: '50', gender: 'barbat' },
+        { name: 'Tuns & Coafat', dur: 60, price: '120', gender: 'femeie' }
+      ].map(s => `
+        <div class="service-card">
+          <div>
+            <strong>${s.name}</strong><br>
+            <span class="small">${s.dur} min • ${s.price} lei</span>
+          </div>
+          <button class="btn primary book-btn" 
+            data-name="${s.name}" 
+            data-dur="${s.dur}" 
+            data-price="${s.price}" 
+            data-gender="${s.gender}">Programează</button>
+        </div>
+      `).join('')}
     </div>
-    <div id="services-list"></div>
-  </section>`
+  </section>`;
 }
 function renderServicesList(gender='barbat'){
   const male=[
@@ -98,30 +113,55 @@ function renderServicesList(gender='barbat'){
       <button class="btn primary book-btn" data-name="${s.name}" data-dur="${s.dur}" data-price="${s.price}" data-gender="${gender}">Programează</button>
     </div>`).join('')}</div>`;
 }
-function Appointment(){
-  if(!bookingDraft) return `<section class='card'><h2>Programare</h2><p>Alege întâi un serviciu.</p></section>`;
-  const today=new Date();const days=[];
-  for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()+i);days.push(d);}
-  const dayBtns=days.map((d,i)=>`<div class="day ${i===0?'active':''}" data-date="${d.toISOString()}">
-    <div>${d.toLocaleDateString('ro-RO',{weekday:'short'})}</div>
-    <div>${d.getDate()} ${d.toLocaleDateString('ro-RO',{month:'short'})}</div>
-  </div>`).join('');
-  const firstSlots=generateSlots(today, bookingDraft.duration);
+function Appointment() {
+  if (!bookingDraft) return `<section class='card'><h2>Programare</h2><p>Alege întâi un serviciu.</p></section>`;
+
+  const today = new Date();
+  today.setDate(today.getDate() + bookingWeekOffset * 7);
+  const startDay = new Date(today);
+  const days = [];
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(startDay);
+    d.setDate(startDay.getDate() + i);
+    days.push(d);
+  }
+
+  const dayBtns = days.map((d, i) => `
+    <div class="day ${i === 0 ? 'active' : ''}" data-date="${d.toISOString()}">
+      <div>${d.toLocaleDateString('ro-RO', { weekday: 'short' })}</div>
+      <div>${d.getDate()} ${d.toLocaleDateString('ro-RO', { month: 'short' })}</div>
+    </div>`).join('');
+
+  const firstSlots = generateSlots(days[0], bookingDraft.duration);
+
   return `<section class='card'>
+    <div class="step-header">
+      <button id="prev-week" class="nav-small">◀ Anterior</button>
+      <strong>Pasul 2 din 3</strong>
+      <button id="next-week" class="nav-small">Următor ▶</button>
+    </div>
     <h2>Alege ora</h2>
     <div class="days" id="daylist">${dayBtns}</div>
-    <div class="slots" id="slotlist">${firstSlots.map(t=>`<div class="slot">${t}</div>`).join('')}</div>
+    <div class="slots" id="slotlist">${firstSlots.map(t => `<div class="slot">${t}</div>`).join('')}</div>
   </section>`;
 }
-function Confirm(){
-  if(!bookingDraft) return `<section class='card'><h2>Confirmă</h2><p>N-ai selectat un slot.</p></section>`;
-  const d=new Date(bookingDraft.dateISO);
-  const readable=`${d.toLocaleDateString('ro-RO')} • ${bookingDraft.time}`;
+function Confirm() {
+  if (!bookingDraft) return `<section class='card'><h2>Confirmă</h2><p>N-ai selectat un slot.</p></section>`;
+  const d = new Date(bookingDraft.dateISO);
+  const readable = `${d.toLocaleDateString('ro-RO')}, ora ${bookingDraft.time}`;
+
   return `<section class='card'>
-    <h2>Confirmare</h2>
-    <p><strong>${bookingDraft.service}</strong> • ${bookingDraft.duration} min</p>
-    <p>${readable}</p>
-    <button class="btn primary" id="confirm-booking">Confirmă programarea</button>
+    <h2>Verifică și confirmă</h2>
+    <p><strong>${readable}</strong><br>Mutcu - Contrast Beauty</p>
+    <hr>
+    <p><strong>${bookingDraft.service}</strong><br>${bookingDraft.duration} min, ${bookingDraft.price} lei</p>
+    <p><strong>Plată în locație</strong><br>Plătești la salon în numerar sau prin alte metode de plată puse la dispoziție.</p>
+    <p><a href="#">Aplică cod reducere/card cadou</a></p>
+    <hr>
+    <h3>Total de plată</h3>
+    <p style="font-size: 24px; font-weight: bold;">${bookingDraft.price} lei</p>
+    <button class="btn primary full-width" id="confirm-booking">Confirmă programarea</button>
   </section>`;
 }
 function Card(u){
@@ -198,15 +238,44 @@ function bindEvents(u){
       $$('.book-btn').forEach(b=>b.onclick=()=>{bookingDraft={service:b.dataset.name,duration:+b.dataset.dur,price:b.dataset.price,gender:b.dataset.gender};navTo('appointment');});
     };
   });
-  if($('#services-list')){ $('#services-list').innerHTML=renderServicesList('barbat');
-    $$('.book-btn').forEach(b=>b.onclick=()=>{bookingDraft={service:b.dataset.name,duration:+b.dataset.dur,price:b.dataset.price,gender:b.dataset.gender};navTo('appointment');});
-  }
+  if ($('#services-list')) {
+  $$('.book-btn').forEach(b => b.onclick = () => {
+    bookingDraft = {
+      service: b.dataset.name,
+      duration: +b.dataset.dur,
+      price: b.dataset.price,
+      gender: b.dataset.gender
+    };
+    bookingWeekOffset = 0;
+    navTo('appointment');
+  });
+}
 
-  if($('#daylist')){ $$('#daylist .day').forEach(d=>d.onclick=()=>{ $$('#daylist .day').forEach(x=>x.classList.remove('active'));d.classList.add('active');
-      const iso=d.dataset.date;const slots=generateSlots(new Date(iso),bookingDraft.duration);
-      $('#slotlist').innerHTML=slots.map(t=>`<div class="slot">${t}</div>`).join('');
-      $$('#slotlist .slot').forEach(s=>s.onclick=()=>{bookingDraft.dateISO=iso;bookingDraft.time=s.textContent;navTo('confirm');});
-  });}
+// Selectare zi și oră
+if ($('#daylist')) {
+  $$('#daylist .day').forEach(d => d.onclick = () => {
+    $$('#daylist .day').forEach(x => x.classList.remove('active'));
+    d.classList.add('active');
+    const iso = d.dataset.date;
+    const slots = generateSlots(new Date(iso), bookingDraft.duration);
+    $('#slotlist').innerHTML = slots.map(t => `<div class="slot">${t}</div>`).join('');
+    $$('#slotlist .slot').forEach(s => s.onclick = () => {
+      bookingDraft.dateISO = iso;
+      bookingDraft.time = s.textContent;
+      navTo('confirm');
+    });
+  });
+}
+
+// Butoane săptămână +/- pentru programări
+$('#prev-week')?.addEventListener('click', () => {
+  bookingWeekOffset = Math.max(0, bookingWeekOffset - 1);
+  navTo('appointment');
+});
+$('#next-week')?.addEventListener('click', () => {
+  bookingWeekOffset++;
+  navTo('appointment');
+});
 
   $('#confirm-booking')?.addEventListener('click',async()=>{
     const body={client_name:u?.name,client_email:u?.email,gender:bookingDraft.gender,service:bookingDraft.service,duration:bookingDraft.duration,price:bookingDraft.price,date:new Date(bookingDraft.dateISO).toISOString().slice(0,10),time:bookingDraft.time,status:'scheduled'};
