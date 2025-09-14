@@ -301,25 +301,28 @@ function bindEvents(u) {
   });
 
   if ($('#daylist')) {
-    $$('#daylist .day').forEach(d => {
-      d.onclick = () => {
-        $$('#daylist .day').forEach(x => x.classList.remove('active'));
-        d.classList.add('active');
-        const iso = d.dataset.date;
-        const slots = generateSlots(new Date(iso), bookingDraft.duration);
-        $('#slotlist').innerHTML = slots
-          .map(t => `<div class="slot">${t}</div>`)
-          .join('');
-        $$('#slotlist .slot').forEach(s => {
-          s.onclick = () => {
-            bookingDraft.dateISO = iso;
-            bookingDraft.time = s.textContent;
-            navTo('confirm');
-          };
-        });
-      };
-    });
-  }
+  $$('#daylist .day').forEach(d => {
+    d.onclick = () => {
+      $$('#daylist .day').forEach(x => x.classList.remove('active'));
+      d.classList.add('active');
+
+      const iso = d.dataset.date;
+      const slots = generateSlots(new Date(iso), bookingDraft.duration);
+      $('#slotlist').innerHTML = slots
+        .map(t => `<div class="slot">${t}</div>`)
+        .join('');
+
+      $$('#slotlist .slot').forEach(s => {
+        s.onclick = () => {
+          bookingDraft.dateISO = iso;
+          bookingDraft.time = s.textContent;
+          navTo('confirm');
+        };
+      });
+    };
+  });
+}
+
 
   $('#prev-week')?.addEventListener('click', () => {
     bookingWeekOffset = Math.max(0, bookingWeekOffset - 1);
