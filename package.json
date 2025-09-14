@@ -1,1 +1,8 @@
-{"name": "contrast-beauty", "type": "module"}
+{
+  "name": "contrast-beauty",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.4"
+  }
+}
