@@ -25,30 +25,14 @@ const signupApi=d=>api('signup','POST',d),
 
 const routes=['home','services','appointment','confirm','card','rewards','profile','login','admin'];
 let route='home';let cachedUser=null;let bookingDraft=null;
-
-async function fetchCurrentUser(){
-  const e=currentUserEmail();
-  if(!e)return null;
-  cachedUser=await getUserApi(e);
-  return cachedUser
-}
-
-function navTo(r){
-  const e=currentUserEmail();
-  if(!e&&r!=='login'){r='login'}
-  if(!routes.includes(r))r='home';
-  route=r;
-  window.location.hash=r;
-  render()
-}
+let currentWeekOffset=0;
 
 /* Helpers pentru ore */
 function pad(n){return n.toString().padStart(2,'0')}
 function toTime(h,m){return `${pad(h)}:${pad(m)}`}
 function minutesAdd(hm, plus){const [h,m]=hm.split(':').map(Number);const t=h*60+m+plus;return toTime(Math.floor(t/60),t%60)}
 function weekdayRange(date){
-  const d=new Date(date);
-  const day=d.getDay();
+  const d=new Date(date);const day=d.getDay();
   if(day===0) return null; // duminică închis
   if(day===6) return {start:'09:00', end:'17:00'};
   return {start:'09:00', end:'20:00'};
@@ -68,9 +52,7 @@ function generateSlots(date, duration=45){
 }
 
 /* Pagini */
-function Home(u){
-  return `<section class='card'><h2>Bine ai venit, ${u?.name||''}</h2></section>`
-}
+function Home(u){return `<section class='card'><h2>Bine ai venit, ${u?.name||''}</h2></section>`}
 function Services(){
   return `<section class='card'>
     <h2>Servicii</h2>
@@ -98,44 +80,69 @@ function renderServicesList(gender='barbat'){
       <button class="btn primary book-btn" data-name="${s.name}" data-dur="${s.dur}" data-price="${s.price}" data-gender="${gender}">Programează</button>
     </div>`).join('')}</div>`;
 }
+
+/* Appointment (calendar + ore) */
 function Appointment(){
   if(!bookingDraft) return `<section class='card'><h2>Programare</h2><p>Alege întâi un serviciu.</p></section>`;
-  const today=new Date();const days=[];
-  for(let i=0;i<7;i++){const d=new Date(today);d.setDate(today.getDate()+i);days.push(d);}
-  const dayBtns=days.map((d,i)=>`<div class="day ${i===0?'active':''}" data-date="${d.toISOString()}">
-    <div>${d.toLocaleDateString('ro-RO',{weekday:'short'})}</div>
-    <div>${d.getDate()} ${d.toLocaleDateString('ro-RO',{month:'short'})}</div>
-  </div>`).join('');
-  const firstSlots=generateSlots(today, bookingDraft.duration);
+
+  const start=new Date();start.setDate(start.getDate() + currentWeekOffset*7);
+  const days=[];for(let i=0;i<7;i++){const d=new Date(start);d.setDate(start.getDate()+i);days.push(d);}
+  const rangeText=`${days[0].getDate()}–${days[6].getDate()} ${days[0].toLocaleDateString('ro-RO',{month:'short'})}`;
+
+  const dayBtns=days.map(d=>{
+    const wd=d.toLocaleDateString('ro-RO',{weekday:'short'});
+    const active=bookingDraft.dateISO && new Date(bookingDraft.dateISO).toDateString()===d.toDateString();
+    return `<div class="day ${active?'active':''}" data-date="${d.toISOString()}">${wd}<br>${d.getDate()}</div>`;
+  }).join('');
+
+  let slotsHtml='';
+  if(bookingDraft.dateISO){
+    const selDate=new Date(bookingDraft.dateISO);
+    const slots=generateSlots(selDate,bookingDraft.duration);
+    if(slots.length===0){
+      slotsHtml=`<p>Contrast Beauty nu are timp disponibil în această zi.</p>`;
+    } else {
+      slotsHtml=`<div class="slots">${slots.map(t=>`<div class="slot">${t}</div>`).join('')}</div>`;
+    }
+  } else {
+    slotsHtml=`<p>Alege o zi pentru a vedea orele disponibile.</p>`;
+  }
+
   return `<section class='card'>
     <h2>Alege ora</h2>
+    <div class="calendar-bar">
+      <button class="btn small" id="prev-week">Anterior</button>
+      <span>${rangeText}</span>
+      <button class="btn small" id="next-week">Următor</button>
+    </div>
     <div class="days" id="daylist">${dayBtns}</div>
-    <div class="slots" id="slotlist">${firstSlots.map(t=>`<div class="slot">${t}</div>`).join('')}</div>
+    ${slotsHtml}
   </section>`;
 }
+
+/* Confirmare */
 function Confirm(){
   if(!bookingDraft) return `<section class='card'><h2>Confirmă</h2><p>N-ai selectat un slot.</p></section>`;
   const d=new Date(bookingDraft.dateISO);
-  const readable=`${d.toLocaleDateString('ro-RO')} • ${bookingDraft.time}`;
   return `<section class='card'>
-    <h2>Confirmare</h2>
-    <p><strong>${bookingDraft.service}</strong> • ${bookingDraft.duration} min</p>
-    <p>${readable}</p>
+    <h2>Verifică și confirmă</h2>
+    <p><strong>${bookingDraft.service}</strong> • ${bookingDraft.duration} min • ${bookingDraft.price}</p>
+    <p>${d.toLocaleDateString('ro-RO')} ora ${bookingDraft.time}</p>
+    <p><em>Plată în locație</em></p>
+    <h3>Total: ${bookingDraft.price}</h3>
     <button class="btn primary" id="confirm-booking">Confirmă programarea</button>
   </section>`;
 }
+
 function Card(u){
   if(!u)return `<section class='card'><h2>Card</h2><p>Autentifică-te.</p></section>`;
   const pct=Math.min(100,(u.visits%REWARD_STAMPS)/REWARD_STAMPS*100);
   return `<section class='card'><h2>Card membru</h2>
     <div class='progress'><div class='fill' style='width:${pct}%'></div></div></section>`;
 }
-function Rewards(u){
-  return `<section class='card'><h2>Recompense</h2><p>${u?.visits||0} vizite</p></section>`;
-}
+function Rewards(u){return `<section class='card'><h2>Recompense</h2><p>${u?.visits||0} vizite</p></section>`}
 function Profile(u){
-  return `<section class='card'><h2>Profil</h2>
-    <p>${u?.name||''}</p><button class='btn' id='btn-logout'>Delogare</button></section>`;
+  return `<section class='card'><h2>Profil</h2><p>${u?.name||''}</p><button class='btn' id='btn-logout'>Delogare</button></section>`;
 }
 function Admin(u,bookings){
   if(!(u?.email==='admin@gmail.com'&&u?.password==='laurcontrastbeauty0000')){
@@ -202,11 +209,15 @@ function bindEvents(u){
     $$('.book-btn').forEach(b=>b.onclick=()=>{bookingDraft={service:b.dataset.name,duration:+b.dataset.dur,price:b.dataset.price,gender:b.dataset.gender};navTo('appointment');});
   }
 
+  // calendar navigare
+  $('#prev-week')?.addEventListener('click',()=>{currentWeekOffset--;navTo('appointment')});
+  $('#next-week')?.addEventListener('click',()=>{currentWeekOffset++;navTo('appointment')});
+
   if($('#daylist')){ $$('#daylist .day').forEach(d=>d.onclick=()=>{ $$('#daylist .day').forEach(x=>x.classList.remove('active'));d.classList.add('active');
-      const iso=d.dataset.date;const slots=generateSlots(new Date(iso),bookingDraft.duration);
-      $('#slotlist').innerHTML=slots.map(t=>`<div class="slot">${t}</div>`).join('');
-      $$('#slotlist .slot').forEach(s=>s.onclick=()=>{bookingDraft.dateISO=iso;bookingDraft.time=s.textContent;navTo('confirm');});
-  });}
+      bookingDraft.dateISO=d.dataset.date;navTo('appointment');});
+  }
+
+  if($('#slotlist')){ $$('#slotlist .slot').forEach(s=>s.onclick=()=>{bookingDraft.time=s.textContent;navTo('confirm');}); }
 
   $('#confirm-booking')?.addEventListener('click',async()=>{
     const body={client_name:u?.name,client_email:u?.email,gender:bookingDraft.gender,service:bookingDraft.service,duration:bookingDraft.duration,price:bookingDraft.price,date:new Date(bookingDraft.dateISO).toISOString().slice(0,10),time:bookingDraft.time,status:'scheduled'};
