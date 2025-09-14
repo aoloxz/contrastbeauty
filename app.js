@@ -151,14 +151,24 @@ function renderServicesList(gender) {
 function Appointment() {
   if (!bookingDraft)
     return `<section class='card'><h2>Programare</h2><p>Alege un serviciu.</p></section>`;
-  const today = new Date();
-  today.setDate(today.getDate() + bookingWeekOffset * 7);
   const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    days.push(d);
-  }
+const today = new Date();
+
+// Setăm începutul săptămânii în funcție de bookingWeekOffset
+const start = new Date(today);
+const currentDay = start.getDay(); // 0 = duminică, 1 = luni, ..., 6 = sâmbătă
+
+// Calculăm offsetul ca să pornim de la luni
+const offset = currentDay === 0 ? -6 : 1 - currentDay;
+start.setDate(start.getDate() + offset + (bookingWeekOffset * 7));
+
+// Adăugăm 7 zile: luni → duminică
+for (let i = 0; i < 7; i++) {
+  const d = new Date(start);
+  d.setDate(start.getDate() + i);
+  days.push(d);
+}
+
   const dayBtns = days
     .map(
       (d, i) => `
