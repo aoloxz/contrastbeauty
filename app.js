@@ -97,16 +97,36 @@ function weekdayRange(date) {
 function generateSlots(date, duration = 45) {
   const range = weekdayRange(date);
   if (!range) return [];
+
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+
   const slots = [];
   let t = range.start;
+
   while (true) {
     const next = minutesAdd(t, duration);
     if (next > range.end) break;
-    slots.push(t);
+
+    if (isToday) {
+      // Comparăm slotul cu ora curentă
+      const [h, m] = t.split(':').map(Number);
+      const slotDate = new Date(date);
+      slotDate.setHours(h, m, 0, 0);
+
+      if (slotDate > now) {
+        slots.push(t);
+      }
+    } else if (date > now || !isToday) {
+      slots.push(t);
+    }
+
     t = next;
   }
+
   return slots;
 }
+
 
 // PAGES
 function Home(u) {
@@ -186,9 +206,14 @@ for (let i = 0; i < 7; i++) {
       <button id="next-week" class="nav-small">▶</button>
     </div>
     <div class="days" id="daylist">${dayBtns}</div>
-    <div class="slots" id="slotlist">${firstSlots
-      .map(t => `<div class="slot">${t}</div>`)
-      .join('')}</div>
+    <div class="slots" id="slotlist">
+  ${
+    firstSlots.length > 0
+      ? firstSlots.map(t => `<div class="slot">${t}</div>`).join('')
+      : '<p style="padding: 8px; color: #999;">Nu sunt ore disponibile în această zi.</p>'
+  }
+</div>
+
   </section>`;
 }
 
